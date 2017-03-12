@@ -40,7 +40,7 @@ func (office *Office) Serve(address string) (err error) {
 			}
 			return err
 		}
-		office.handler.CallJoinFunc(&Context{conn: conn})
+		office.handler.CallJoinFunc(&Context{office: office, conn: conn})
 		go office.handleConn(conn)
 	}
 }
@@ -54,7 +54,7 @@ func (office *Office) Join(address string) (err error) {
 	defer func() {
 		office.mode = MODE_NIL
 	}()
-	office.handler.CallJoinFunc(&Context{conn: conn})
+	office.handler.CallJoinFunc(&Context{office: office, conn: conn})
 	err = office.handleConn(conn)
 	return
 }
@@ -81,6 +81,6 @@ func (office *Office) handleConn(conn net.Conn) (err error) {
 			office.handler.CallCloseFunc(&Context{conn: conn})
 			return err
 		}
-		office.handler.CallMsgFunc(&Context{conn: conn}, msg)
+		office.handler.CallMsgFunc(&Context{office: office, conn: conn}, msg)
 	}
 }

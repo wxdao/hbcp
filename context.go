@@ -6,7 +6,8 @@ import (
 )
 
 type Context struct {
-	conn net.Conn
+	office *Office
+	conn   net.Conn
 }
 
 func (context *Context) Respond(msg Msg) (err error) {
@@ -22,4 +23,15 @@ func (context *Context) Respond(msg Msg) (err error) {
 func (context *Context) RemoteAddr() (addr net.Addr) {
 	addr = context.conn.RemoteAddr()
 	return addr
+}
+
+func (context *Context) LocalAddr() (addr net.Addr) {
+	addr = context.conn.LocalAddr()
+	return addr
+}
+
+func (context *Context) Close() (err error) {
+	err = context.conn.Close()
+	context.office.handler.CallCloseFunc(context)
+	return
 }
