@@ -1,25 +1,25 @@
 package hbcp
 
 type Handler struct {
-	HandleMsgFunc   func(context *Context, msg Msg)
-	HandleJoinFunc  func(context *Context)
-	HandleCloseFunc func(context *Context)
+	OnMsg   func(context *Context, msg Msg)
+	OnJoin  func(context *Context)
+	OnClose func(context *Context)
 }
 
-func (handler *Handler) CallMsgFunc(context *Context, msg Msg) {
-	if handler.HandleMsgFunc != nil {
-		go handler.HandleMsgFunc(context, msg)
+func (handler *Handler) EmitMsg(context *Context, msg Msg) {
+	if handler.OnMsg != nil {
+		go handler.OnMsg(context, msg)
 	}
 }
 
-func (handler *Handler) CallJoinFunc(context *Context) {
-	if handler.HandleJoinFunc != nil {
-		go handler.HandleJoinFunc(context)
+func (handler *Handler) EmitJoin(context *Context) {
+	if handler.OnJoin != nil {
+		go handler.OnJoin(context)
 	}
 }
 
-func (handler *Handler) CallCloseFunc(context *Context) {
-	if handler.HandleCloseFunc != nil {
-		go handler.HandleCloseFunc(context)
+func (handler *Handler) EmitClose(context *Context) {
+	if handler.OnClose != nil {
+		go handler.OnClose(context)
 	}
 }

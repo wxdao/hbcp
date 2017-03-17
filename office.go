@@ -3,32 +3,28 @@ package hbcp
 import (
 	"bufio"
 	"net"
-)
-
-const (
-	MODE_NIL   = 0
-	MODE_SERVE = 1
-	MODE_JOIN  = 2
+	"encoding/base64"
 )
 
 type Office struct {
 	handler Handler
 	mode    int
+	metaHandlers map[string]MetaHandler
 }
 
-func NewOffice(handler Handler) (office Office) {
+func NewOffice(handler Handler, metaHandlers map[string]MetaHandler) (office Office) {
 	office = Office{}
-	office.mode = MODE_NIL
 	office.handler = handler
+	if metaHandlers == nil {
+		metaHandlers = make(map[string]MetaHandler)
+	}
+	metaHandlers["b64"] = b64
+	office.metaHandlers = metaHandlers
 	return
 }
 
 func (office *Office) Serve(address string) (err error) {
 	listener, err := net.Listen("tcp", address)
-	office.mode = MODE_SERVE
-	defer func() {
-		office.mode = MODE_NIL
-	}()
 	if err != nil {
 		return
 	}
@@ -40,8 +36,7 @@ func (office *Office) Serve(address string) (err error) {
 			}
 			return err
 		}
-		office.handler.CallJoinFunc(&Context{office: office, conn: conn})
-		go office.handleConn(conn)
+		go office.Attach(conn)
 	}
 }
 
@@ -50,24 +45,12 @@ func (office *Office) Join(address string) (err error) {
 	if err != nil {
 		return
 	}
-	office.mode = MODE_JOIN
-	defer func() {
-		office.mode = MODE_NIL
-	}()
-	office.handler.CallJoinFunc(&Context{office: office, conn: conn})
-	err = office.handleConn(conn)
+	office.Attach(conn)
 	return
 }
 
-func (office *Office) Send(address string) (err error) {
-	conn, err := net.Dial("tcp", address)
-	if err != nil {
-		return
-	}
-	office.mode = MODE_JOIN
-	defer func() {
-		office.mode = MODE_NIL
-	}()
+func (office *Office) Attach(conn net.Conn) (err error) {
+	office.handler.EmitJoin(&Context{office: office, conn: conn})
 	err = office.handleConn(conn)
 	return
 }
@@ -75,12 +58,17 @@ func (office *Office) Send(address string) (err error) {
 func (office *Office) handleConn(conn net.Conn) (err error) {
 	reader := bufio.NewReader(conn)
 	for {
-		msg, err := ConstructMsg(reader)
+		msg, err := ConstructMsg(reader, office.metaHandlers)
 		if err != nil {
 			conn.Close()
-			office.handler.CallCloseFunc(&Context{conn: conn})
+			office.handler.EmitClose(&Context{conn: conn})
 			return err
 		}
-		office.handler.CallMsgFunc(&Context{office: office, conn: conn}, msg)
+		office.handler.EmitMsg(&Context{office: office, conn: conn}, msg)
 	}
+}
+
+func b64(param string, value string) (rvalue []byte, err error) {
+	rvalue, err = base64.StdEncoding.DecodeString(value)
+	return
 }
